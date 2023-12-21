@@ -54,6 +54,7 @@ class PeerServer(threading.Thread):
 
         # ip address of this peer
         #self.peerServerHostname = 'localhost'
+        #Here we use listen to listen for incoming connections
         # socket initializations for the server of the peer
         self.tcpServerSocket.bind((self.peerServerHostname, self.peerServerPort))
         self.tcpServerSocket.listen(4)
