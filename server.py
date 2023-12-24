@@ -29,9 +29,12 @@ class ClientThread(threading.Thread):
                 else:
                     self.csocket.send("Invalid Room Name".encode())
             elif data[0] == "DELETE_CHAT_ROOM":
-                del chatRooms[data[1]]
-                message = "Room deleted Successfully!".encode()
-                self.csocket.send(message)
+                if chatRooms.get(data[1]) is not None:
+                    del chatRooms[data[1]]
+                    message = "Room deleted Successfully!".encode()
+                    self.csocket.send(message)
+                else:
+                    self.csocket.send("Invalid Room Name".encode())                    
             elif data.decode()=="quit":
               self.csocket.send(str.encode("Ok By By"))
               self.csocket.close()
