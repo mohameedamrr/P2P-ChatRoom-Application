@@ -11,12 +11,12 @@ server.bind((host, port))
 server.listen()
 
 # Lists For Clients and Their Nicknames
-clients = []
-nicknames = []
+roomMembers = []
+memberSockets = []
 
 # Sending Messages To All Connected Clients
 def broadcast(message):
-    for client in clients:
+    for client in roomMembers:
         client.send(message)
 
 # Handling Messages From Clients
@@ -24,37 +24,51 @@ def handle(client):
     while True:
         try:
             # Broadcasting Messages
-            message = client.recv(1024)
-            broadcast(message)
+            message = client.recv(1024).decode('ascii').split('|')
+            if message[0] == "JOIN_REQUEST":
+                roomMembers.append(message[1])  # message[1] is client port number
+                response = "|".join(roomMembers)
+                response = "JOINED" + '|' + response
+                client.send(response).encode('ascii')
+                broadcastMessage = "NEW_USER" + '|' + message[1] 
+        # Print And Broadcast Nickname
+                broadcast("{} joined!".format(message[2]).encode('ascii')) # message[2] is the username
+                broadcast(broadcastMessage.encode('ascii'))
+            # broadcast(message)
+            elif message[0] == "LEAVE_CHAT_ROOM":
+                index = roomMembers.index(message[1])
+                roomMembers.remove(message[1])
+                memberSockets[index].close()
+                del memberSockets[index] 
+
+                broadcast('{} left!'.format(message[2]).encode('ascii')) # message[2] is the username.
+            else:
+                print(message) 
         except:
             # Removing And Closing Clients
-            index = clients.index(client)
-            clients.remove(client)
-            client.close()
-            nickname = nicknames[index]
-            broadcast('{} left!'.format(nickname).encode('ascii'))
-            nicknames.remove(nickname)
+            index = roomMembers.index(message[1])
+            roomMembers.remove(message[1])
+            memberSockets[index].close()
+            del memberSockets[index] 
+
+            broadcast('{} left!'.format(message[2]).encode('ascii')) # message[2] is the username.
             break
 # Receiving / Listening Function
-def receive():
+def receive(): # the main purpose of recieve is to open connections (sockets) 
     while True:
         # Accept Connection
-        client, address = server.accept()
-        print("Connected with {}".format(str(address)))
+        client, (ip, portNumber) = server.accept()
+        print("Connected with {}".format(str(portNumber)))
 
+        roomMembers.append(portNumber)
+        memberSockets.append(client)
+        
         # Request And Store Nickname
-        client.send('NICK'.encode('ascii'))
-        nickname = client.recv(1024).decode('ascii')
-        nicknames.append(nickname)
-        clients.append(client)
-
-        # Print And Broadcast Nickname
-        print("Nickname is {}".format(nickname))
-        broadcast("{} joined!".format(nickname).encode('ascii'))
+        
         client.send('Connected to server!'.encode('ascii'))
 
         # Start Handling Thread For Client
-        thread = threading.Thread(target=handle, args=(client,))
+        thread = threading.Thread(target=handle, args=(client,)) # This thread is for the handle function, the peerserver is constantly handling all messages recieved from all the members connected to it
         thread.start()
 
 receive()

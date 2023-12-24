@@ -14,7 +14,7 @@ s.connect((host,port))
 data = s.recv(size)
 
 if len(data):
- print('Received:', data.decode())
+    print('Received:', data.decode())
 
 data="message goes here"
 
