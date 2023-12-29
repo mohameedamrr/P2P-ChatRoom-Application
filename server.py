@@ -20,7 +20,7 @@ class ClientThread(threading.Thread):
             data = self.csocket.recv(2048).decode().split('|')
             if data[0] == "CREATE_CHAT_ROOM":
                 chatRooms[data[1]] = data[2]
-                message = "Room Created Successfully!".encode()
+                message = "ROOM_CREATED".encode()
                 self.csocket.send(message)
             elif data[0] == "JOIN_CHAT_ROOM":
                 if chatRooms.get(data[1]) is not None:
