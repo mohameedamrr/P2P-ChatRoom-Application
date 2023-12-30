@@ -129,37 +129,30 @@ class ClientThread(threading.Thread):
                     else:
                         self.tcpClientSocket.close()
                         break
-                 #   CREATE ROOM   #
                 elif message[0] == "CREATE_CHAT_ROOM":
                     # if room exist
-                    if db.is_room_exist(message[1]):
+                    if db.isRoomExists(message[1]):
                         response = "ROOM_NAME_EXISTS"
                     # if room created
                     else:
-                        db.create_room(message[1], message[2], self.username)
+                        db.createRoom(message[1], message[2], self.username)
                         print("room created")
-                        # print("IP address: " + format["BBLUE"] + self.ip + format["END"])
-                        # print("Port number: " + format["BBLUE"] + str(self.port) + format["END"])
-                        # print("\n" + format["YELLOW"] + "Listening for incoming connections..." + format["END"] + "\n")
                         response = "ROOM_CREATED"
                     logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response) 
                     self.tcpClientSocket.send(response.encode())
                 
                 elif message[0] == "JOIN_CHAT_ROOM":
                     # if room doesn't exist
-                    if not db.is_room_exist(message[1]): 
+                    if not db.isRoomExists(message[1]): 
                         response = "ROOM_NOT_EXIST"
                     # if room exist
                     else:
-                        roomdetails = db.get_room_details(message[1])
+                        roomdetails = db.getRoomDetails(message[1])
                         if roomdetails["password"] == message[2]:
-                            db.join_room(message[1],self.username)
+                            db.joinRoom(message[1],self.username)
                             print("room joined")
-                            # print("IP address: " + format["BBLUE"] + self.ip + format["END"])
-                            # print("Port number: " + format["BBLUE"] + str(self.port) + format["END"])
-                            # print("\n" + format["YELLOW"] + "Listening for incoming connections..." + format["END"] + "\n")
+
                             response = "JOINED"
-                        # if password not matches and then login-wrong-password response is sent
                         else:
                             response = "ROOM_WRONG_PASSWORD"
                     logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response) 
@@ -167,13 +160,13 @@ class ClientThread(threading.Thread):
 
                 elif message[0] == "ENTER_ROOM":
                     # if room doesn't exist
-                    if not db.is_room_exist(message[1]): 
+                    if not db.isRoomExists(message[1]): 
                         response = "ROOM_NOT_EXIST"
                     # if room exist
                     else:
-                        isMember = db.is_user_in_room(message[1], self.username)
+                        isMember = db.isPeerInRoom(message[1], self.username)
                         if isMember:
-                            db.enter_room(message[1] , self.username)
+                            db.enterRoom(message[1] , self.username)
                             response = "VALID_ROOM"
                         else:
                             response = "INVALID_ROOM"
@@ -181,12 +174,12 @@ class ClientThread(threading.Thread):
                     self.tcpClientSocket.send(response.encode())
                 
                 elif message[0] == "EXIT_ROOM":
-                    db.exit_room(message[1], self.username)
-                    db.leave_room(message[1],self.username)
+                    db.exitRoom(message[1], self.username)
+                    db.leaveRoom(message[1],self.username)
 
 
                 elif message[0] == "SHOW_ROOMS":
-                    myRooms = db.show_rooms(self.username)
+                    myRooms = db.showAvailableRooms(self.username)
                     if myRooms:
                         response = str(myRooms)  # Convert the list to a string
                     else:
@@ -196,9 +189,9 @@ class ClientThread(threading.Thread):
 
 
                 elif message[0] == "SEARCH_ROOM":
-                    roomMembers = db.get_users_in_room(message[1], self.username)
+                    roomMembers = db.getPeersInRoom(message[1], self.username)
                     if roomMembers:
-                        response = str(roomMembers)  # Convert the list to a string
+                        response = str(roomMembers)  
                     else:
                         response = "ROOM_EMPTY"
                     logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response) 
@@ -208,7 +201,7 @@ class ClientThread(threading.Thread):
                 elif message[0] == "SEARCH_ROOM_ONLINE":
                     roomMembers = db.get_users_entered_room(message[1], self.username)
                     if roomMembers:
-                        response = str(roomMembers)  # Convert the list to a string
+                        response = str(roomMembers)  
                     else:
                         response = "ROOM_EMPTY"
                     logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response) 
@@ -217,11 +210,11 @@ class ClientThread(threading.Thread):
 
                 elif message[0] == "DELETE_ROOM":
                     # if room doesn't exist
-                    if not db.is_room_exist(message[1]): 
+                    if not db.isRoomExists(message[1]): 
                         response = "ROOM_NOT_EXIST"
                     # if room exist
                     else:
-                        roomdetails = db.get_room_details(message[1])
+                        roomdetails = db.getRoomDetails(message[1])
                         if roomdetails["password"] == message[2]:
                             if roomdetails["creator"] == self.username:
                                 db.delete_room(message[1],self.username)
@@ -232,7 +225,6 @@ class ClientThread(threading.Thread):
                                 response = "ROOM_DELETED"
                             else:
                                 response = "NOT_CREATOR"
-                             # if password not matches and then login-wrong-password response is sent
                         else:
                             response = "ROOM_WRONG_PASSWORD"
                     logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response) 

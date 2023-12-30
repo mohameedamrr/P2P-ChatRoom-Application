@@ -68,39 +68,37 @@ class DB:
         online_peers = self.db.online_peers.find()
         return [peer['username'] for peer in online_peers]
     
-    def create_room(self, roomname, password, username):
+    def createRoom(self, roomname, password, username):
         room = {
             "roomname": roomname,
             "password": password,
             "creator": username
         }
-        self.db.rooms.insert_one(room)                                    #new function
+        self.db.rooms.insert_one(room)                                
     
-    def delete_room(self, roomname, username):
-        self.db.rooms.delete_one({"roomname": roomname, "creator": username})                     #new function
+    def deleteRoom(self, roomname, username):
+        self.db.rooms.delete_one({"roomname": roomname, "creator": username})                 
         self.db.room_peers.delete_many({"roomname": roomname})
         self.db.online_room_peers.delete_many({"roomname": roomname})
 
-    def is_room_exist(self, roomname):
-        return bool(self.db.rooms.find_one({'roomname': roomname}))  # new function
+    def isRoomExists(self, roomname):
+        return bool(self.db.rooms.find_one({'roomname': roomname}))  
 
-    def get_room_details(self, roomname):
+    def getRoomDetails(self, roomname):
         return self.db.rooms.find_one({"roomname": roomname}, {"_id": 0, "password": 1, "creator": 1})
-#######################################################################################################################
 
 
-#######################################################################################################################
-    def join_room(self, roomname, username):
+    def joinRoom(self, roomname, username):
         member = {
             "roomname": roomname,
             "username": username,
         }
-        self.db.room_peers.insert_one(member)                                #new function
+        self.db.room_peers.insert_one(member)                                
 
-    def leave_room(self, roomname, username):
-        self.db.room_peers.delete_one({"roomname": roomname, "username": username})                     #new function
+    def leaveRoom(self, roomname, username):
+        self.db.room_peers.delete_one({"roomname": roomname, "username": username})                    
 
-    def show_rooms(self, username):
+    def showAvailableRooms(self, username):
         cursor = self.db.room_peers.find({"username": username}, {"_id": 0, "roomname": 1})
         rooms = [{"roomname": doc["roomname"]} for doc in cursor]
         if rooms:
@@ -108,7 +106,7 @@ class DB:
         else:
             return None
 
-    def get_users_in_room(self, roomname, current_username):
+    def getPeersInRoom(self, roomname, current_username):
         cursor = self.db.room_peers.find({"roomname": roomname, "username": {"$ne": current_username}}, {"_id": 0, "username": 1})
         users_in_room = [{"username": doc["username"]} for doc in cursor]
         if users_in_room:
@@ -116,22 +114,21 @@ class DB:
         else:
             return None
 
-    def is_user_in_room(self, roomname, username):
+    def isPeerInRoom(self, roomname, username):
         user = self.db.room_peers.find_one({"roomname": roomname, "username": username})
         return user is not None
-#######################################################################################################################
 
 
-#######################################################################################################################
-    def enter_room(self, roomname, username):
+
+    def enterRoom(self, roomname, username):
         member = {
             "roomname": roomname,
             "username": username,
         }
-        self.db.online_room_peers.insert_one(member)                                #new function
+        self.db.online_room_peers.insert_one(member)                               
 
-    def exit_room(self, roomname, username):
-        self.db.online_room_peers.delete_one({"roomname": roomname, "username": username})                     #new function
+    def exitRoom(self, roomname, username):
+        self.db.online_room_peers.delete_one({"roomname": roomname, "username": username})
 
     def get_users_entered_room(self, roomname, current_username):
         cursor = self.db.online_room_peers.find({"roomname": roomname, "username": {"$ne": current_username}}, {"_id": 0, "username": 1})
