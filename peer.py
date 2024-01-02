@@ -35,6 +35,7 @@ class PeerServer(threading.Thread):
         self.isOnline = True
         # keeps the username of the peer that this peer is chatting with
         self.chattingClientName = None
+        self.busy = 0
     
 
     # main method of the peer server thread
@@ -89,25 +90,15 @@ class PeerServer(threading.Thread):
                         messageReceived = s.recv(1024).decode() 
                         # logs the received message
                         logging.info("Received from " + str(self.connectedPeerIP) + " -> " + str(messageReceived))
-                        if self.isRoomRequested:
-                            message = messageReceived.split()
-                            # gets the username of the peer sends the chat request message
-                            self.chattingClientName = message[0]
-                            messageReceived = " ".join(message[1:])
-                            if messageReceived == ":q":
-                                print("\n" + self.chattingClientName + " quit\n" )
-                            else:
-                                print(self.chattingClientName + ": " + messageReceived)
-                            inputs.clear()
-                            inputs.append(self.tcpServerSocket)
+                    
                         # if message is a request message it means that this is the receiver side peer server
-                        # so evaluate the chat request
-                        elif len(messageReceived) > 11 and messageReceived[:12] == "CHAT-REQUEST":
+                        # so evaluate the chat request 
+                        if len(messageReceived) > 11 and messageReceived[:12] == "CHAT_REQUEST":
                             # text for proper input choices is printed however OK or REJECT is taken as input in main process of the peer
                             # if the socket that we received the data belongs to the peer that we are chatting with
-                            if s is self.connectedPeerSocket:
+                            if s is self.connectedPeerSocket and not self.isRoomRequested:
                                 # parses the message
-                                messageReceived = messageReceived.split()
+                                messageReceived = messageReceived.split('|')
                                 # gets the port of the peer that sends the chat request message
                                 self.connectedPeerPort = int(messageReceived[1])
                                 # gets the username of the peer sends the chat request message
@@ -127,6 +118,20 @@ class PeerServer(threading.Thread):
                                 # remove the peer from the inputs list so that it will not monitor this socket
                                 inputs.remove(s)
                         # if an OK message is received then ischatrequested is made 1 and then next messages will be shown to the peer of this server
+                        elif self.isRoomRequested:
+                            message = messageReceived.split('|')
+                            # gets the username of the peer sends the chat request message
+                            self.chattingClientName = message[0]
+                            messageReceived = message[1]
+                            if messageReceived == ":q":
+                                print("\n" + self.chattingClientName + " quit\n" )
+                            elif messageReceived == "JOINED":
+                                print('\n' + self.chattingClientName + " joined the room!")
+                            else:
+                                print(self.chattingClientName + ": " + messageReceived)
+                            inputs.clear()
+                            inputs.append(self.tcpServerSocket)
+       
                         elif messageReceived == "OK":
                             self.isChatRequested = 1
                         # if an REJECT message is received then ischatrequested is made 0 so that it can receive any other chat requests
@@ -196,7 +201,7 @@ class PeerClient(threading.Thread):
         # if the server of this peer is not connected by someone else and if this is the requester side peer client then enters here
         if self.peerServer.isChatRequested == 0 and self.responseReceived is None and self.isChatRoom is False:
             # composes a request message and this is sent to server and then this waits a response message from the server this client connects
-            requestMessage = "CHAT-REQUEST " + str(self.peerServer.peerServerPort)+ " " + self.username
+            requestMessage = "CHAT_REQUEST" +'|' + str(self.peerServer.peerServerPort)+ "|" + self.username
             # logs the chat request sent to other peer
             logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + requestMessage)
             # sends the chat request
@@ -222,6 +227,7 @@ class PeerClient(threading.Thread):
                     # sends the message to the connected peer, and logs it
                     self.tcpClientSocket.send(messageSent.encode())
                     logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + messageSent)
+                    
                     # if the quit message is sent, then the server status is changed to not chatting
                     # and this is the side that is ending the chat
                     if messageSent == ":q":
@@ -352,6 +358,7 @@ class peerMain:
             choice = input("Enter your choice: ")
             # if choice is 1, creates an account with the username
             # and password entered by the user
+            # print(choice == "10" and self.isOnline)
             if choice is "1" and not self.isOnline:
                 username = input("Enter Username: ")
                 password = input("Enter Password: ")
@@ -413,7 +420,7 @@ class peerMain:
                 # if searched user is found, then its ip address and port number is retrieved
                 # and a client thread is created
                 # main process waits for the client thread to finish its chat
-                if searchStatus is not None and searchStatus is not 0:
+                if searchStatus is not None and searchStatus is not 0 :
                     searchStatus = searchStatus.split(":")
                     self.peerClient = PeerClient(searchStatus[0], int(searchStatus[1]) , self.loginCredentials[0], self.peerServer, None)
                     self.peerClient.start()
@@ -439,8 +446,7 @@ class peerMain:
                 if status:
                     roomname = input("Enter room name: ")
                     self.enterRoom(roomname)
-
-            elif choice is "10" and self.isOnline:
+            elif choice == '10' and self.isOnline:
                 print("Delete Room")
                 roomname = input("roomname: " )
                 password = input("password: " )
@@ -508,13 +514,13 @@ class peerMain:
             print(f"{Fore.RED}Wrong password.")
             return 3
         
-    def dataHashed(self, data):
+    def hashedData(self, data):
         # Combine the password with the salt and hash it using SHA-256
         hashed_data = hashlib.sha256((data).encode('utf-8')).hexdigest()
         return hashed_data
     
     def createRoom(self, roomname, password):
-        hashed_password = self.dataHashed(password)
+        hashed_password = self.hashedData(password)
         message = "CREATE_CHAT_ROOM" +"|" + roomname + "|" + hashed_password
         logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
         self.tcpClientSocket.send(message.encode())
@@ -528,7 +534,7 @@ class peerMain:
     
         # join room function
     def joinRoom(self, roomname, password):
-        hashed_password = self.dataHashed(password)
+        hashed_password = self.hashedData(password)
         message = "JOIN_CHAT_ROOM"+ "|" + roomname + "|" + hashed_password
         logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
         self.tcpClientSocket.send(message.encode())
@@ -566,6 +572,8 @@ class peerMain:
         response = self.tcpClientSocket.recv(1024).decode()
         logging.info("Received from " + self.registryName + " -> " + response)
         if response == "VALID_ROOM":
+            self.peerServer.isRoomRequested = 1
+            self.peerServer.isChatRequested = 1
             members = self.roomMembers(roomname)    # retrieve room members
             if members:
                 roomMembers = ast.literal_eval(members)
@@ -593,9 +601,7 @@ class peerMain:
         
     def sendRoomMessage(self, roomname):
         print("\n                        Chat")
-        self.peerServer.isRoomRequested = 1
-        self.peerServer.isChatRequested = 1
-        members = self.onlineRoomMembers(roomname)
+        members = self.getOnlineRoomMembers(roomname)
         if members:
             
             roomMembers = ast.literal_eval(members)
@@ -607,13 +613,12 @@ class peerMain:
                     port = memberCred[1]
                     msgSocket = socket(AF_INET, SOCK_STREAM)
                     msgSocket.connect((ip, int(port)))
-                    username = self.loginCredentials[0].split(':')[0]
-                    message = "     "+ username + " " + "Joined the room!"
+                    message =  self.loginCredentials[0] + "|" + "JOINED" 
                     msgSocket.send(message.encode())
                     msgSocket.close()
         while 1:
             msg = input()
-            members = self.onlineRoomMembers(roomname)
+            members = self.getOnlineRoomMembers(roomname)
             if members:
                 roomMembers = ast.literal_eval(members)
                 for member in roomMembers:
@@ -624,24 +629,24 @@ class peerMain:
                         port = memberCred[1]
                         msgSocket = socket(AF_INET, SOCK_STREAM)
                         msgSocket.connect((ip, int(port)))
-                        message = self.loginCredentials[0] + " " + msg
+                        message = self.loginCredentials[0] + "|" + msg
                         logging.info("Send to " + ip + ":" + port + " -> " + message)
                         msgSocket.send(message.encode())
                         msgSocket.close()
             if msg == ":q":
-                self.exitRoom(roomname)
+                self.leaveRoom(roomname)
                 self.peerServer.isRoomRequested = 0
                 self.peerServer.isChatRequested = 0
                 break
 
 
-    def exitRoom(self, roomname):
+    def leaveRoom(self, roomname):
         message = "EXIT_ROOM|" + roomname
         logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
         self.tcpClientSocket.send(message.encode())
         print("\nYou have quit the room.")
         
-    def onlineRoomMembers(self, roomname):
+    def getOnlineRoomMembers(self, roomname):
         message = "SEARCH_ROOM_ONLINE|" + roomname
         logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
         self.tcpClientSocket.send(message.encode())
@@ -653,8 +658,8 @@ class peerMain:
             return response
         
     def deleteRoom(self, roomname, password):
-        hashed_password = self.dataHashed(password)
-        message = "DELETE_ROOM " + roomname + " " + hashed_password
+        hashed_password = self.hashedData(password)
+        message = "DELETE_ROOM|" + roomname + "|" + hashed_password
         logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
         self.tcpClientSocket.send(message.encode())
         response = self.tcpClientSocket.recv(1024).decode()

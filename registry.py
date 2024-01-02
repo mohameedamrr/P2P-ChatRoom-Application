@@ -217,7 +217,7 @@ class ClientThread(threading.Thread):
                         roomdetails = db.getRoomDetails(message[1])
                         if roomdetails["password"] == message[2]:
                             if roomdetails["creator"] == self.username:
-                                db.delete_room(message[1],self.username)
+                                db.deleteRoom(message[1],self.username)
                                 print("Room deleted:")
                                 print("IP address: " + self.ip )
                                 print("Port number: " + str(self.port))
