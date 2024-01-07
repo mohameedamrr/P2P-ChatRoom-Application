@@ -7,6 +7,30 @@ import logging
 from colorama import Fore, Style, init
 import hashlib
 import secrets
+import re
+import sys
+
+
+
+class TextFormatting:
+    BOLD = "\033[1m"
+    ITALIC = "\033[3m"
+    UNDERLINE = "\033[4m"
+    RESET = "\033[0m"
+    HYPERLINK = "\033]8;;{}\033\\{}\033]8;;\033\\"
+
+
+def applyformatting(message):
+
+    if message.startswith("*"):
+        message = TextFormatting.BOLD + message[1:] + TextFormatting.RESET
+    elif message.startswith("#"):
+        message = TextFormatting.ITALIC + message[1:] + TextFormatting.RESET
+    elif message.startswith("_"):
+        message = TextFormatting.UNDERLINE + message[1:] + TextFormatting.RESET
+    elif message.startswith("http:") or message.startswith("https:"):
+        return TextFormatting.HYPERLINK.format(message, message)
+    return message
 
 # Server side of peer
 class PeerServer(threading.Thread):
@@ -141,6 +165,7 @@ class PeerServer(threading.Thread):
                         # if a message is received, and if this is not a quit message ':q' and 
                         # if it is not an empty message, show this message to the user
                         elif messageReceived[:2] != ":q" and len(messageReceived)!= 0:
+                            messageReceived = applyformatting(messageReceived)
                             print(str(self.chattingClientName) + ": " + str(messageReceived))
                         # if the message received is a quit message ':q',
                         # makes ischatrequested 1 to receive new incoming request messages
@@ -223,10 +248,15 @@ class PeerClient(threading.Thread):
                 # as long as the server status is chatting, this client can send messages
                 while self.peerServer.isChatRequested == 1:
                     # message input prompt
-                    messageSent = input(self.username + ": ")
+                    messageSent = input()
+                    sys.stdout.write("\033[F")
+                    sys.stdout.write("\033[K")
                     # sends the message to the connected peer, and logs it
                     self.tcpClientSocket.send(messageSent.encode())
                     logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + messageSent)
+                    if messageSent != ":q":
+                        messageFormatted = applyformatting(messageSent)
+                        print("me: " + messageFormatted)
                     
                     # if the quit message is sent, then the server status is changed to not chatting
                     # and this is the side that is ending the chat
@@ -272,9 +302,14 @@ class PeerClient(threading.Thread):
             # client can send messsages as long as the server status is chatting
             while self.peerServer.isChatRequested == 1:
                 # input prompt for user to enter message
-                messageSent = input(f"{Fore.LIGHTBLACK_EX}{self.username}: ")
+                messageSent = input()
+                sys.stdout.write("\033[F")
+                sys.stdout.write("\033[K")                
                 self.tcpClientSocket.send(messageSent.encode())
                 logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + messageSent)
+                if messageSent != ":q":
+                    messageFormatted = applyformatting(messageSent)
+                    print("me: " + messageFormatted)
                 # if a quit message is sent, server status is changed
                 if messageSent == ":q":
                     self.peerServer.isChatRequested = 0
