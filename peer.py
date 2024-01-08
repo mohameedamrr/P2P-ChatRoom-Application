@@ -147,6 +147,7 @@ class PeerServer(threading.Thread):
                             # gets the username of the peer sends the chat request message
                             self.chattingClientName = message[0]
                             messageReceived = message[1]
+                            messageReceived = applyformatting(messageReceived)
                             if messageReceived == ":q":
                                 print("\n" + self.chattingClientName + " quit\n" )
                             elif messageReceived == "JOINED":
@@ -155,7 +156,7 @@ class PeerServer(threading.Thread):
                                 print(self.chattingClientName + ": " + messageReceived)
                             inputs.clear()
                             inputs.append(self.tcpServerSocket)
-       
+
                         elif messageReceived == "OK":
                             self.isChatRequested = 1
                         # if an REJECT message is received then ischatrequested is made 0 so that it can receive any other chat requests
@@ -327,12 +328,12 @@ class PeerClient(threading.Thread):
                 
 
 # main process of the peer
-class peerMain:
+class peerMain(unittest.TestCase):
 
     # peer initializations
     def __init__(self):
         while True:
-            self.registryName = input("Enter IP address of registry: ")
+            self.registryName = input("Enter IP address of registry: ") 
             self.registryPort = 15600
             self.tcpClientSocket = socket(AF_INET, SOCK_STREAM)
 
@@ -399,6 +400,7 @@ class peerMain:
                 password = input("Enter Password: ")
                 
                 self.createAccount(username, password)
+                # self.test_create_account_exists()
             # if choice is 2 and user is not logged in, asks for the username
             # and the password to login
             elif choice is "1" and self.isOnline:
@@ -444,7 +446,7 @@ class peerMain:
                 searchStatus = self.searchUser(username)
                 # if user is found its ip address is shown to user
                 if searchStatus is not None and searchStatus != 0:
-                    print("IP address of " + username + " is " + searchStatus)
+                    print("User found Successfully !" + "\n User details: IP address of " + username + " is " + searchStatus)
             elif choice is "4" and not self.isOnline:
                 print(f"{Fore.RED}Please login before searching for a user.")
             # if choice is 5 and user is online, then user is asked
@@ -517,37 +519,43 @@ class peerMain:
         # join message to create an account is composed and sent to registry
         # if response is success then informs the user for account creation
         # if response is exist then informs the user for account existence
-        message = "SIGN_UP" + "|" + username + "|" + password
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
-        response = self.tcpClientSocket.recv(1024).decode()
-        logging.info("Received from " + self.registryName + " -> " + response)
-        if response == "SIGN_UP_SUCCESS":
-            print(f"{Fore.GREEN}Account created successfully !")
-        elif response == "USER_ALREADY_EXISTS":
-            print(f"{Fore.RED} Account already exists.")
+        try:
+            message = "SIGN_UP" + "|" + username + "|" + password
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+            response = self.tcpClientSocket.recv(1024).decode()
+            logging.info("Received from " + self.registryName + " -> " + response)
+            if response == "SIGN_UP_SUCCESS":
+                print(f"{Fore.GREEN}Account created successfully !")
+            elif response == "USER_ALREADY_EXISTS":
+                print(f"{Fore.RED} Account already exists.")
+        except:
+            print("Error in createAccount function")
 
     # login function
     def login(self, username, password, peerServerPort):
         # a login message is composed and sent to registry
         # an integer is returned according to each response
-        message = "LOGIN" + "|" + username + "|" + password + "|" + str(peerServerPort)
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
-        response = self.tcpClientSocket.recv(1024).decode()
-        logging.info("Received from " + self.registryName + " -> " + response)
-        if response == "LOGIN_SUCCESS":
-            print(f"{Fore.GREEN}Logged in successfully !")
-            return 1
-        elif response == "USER_NOT_FOUND":
-            print(f"{Fore.RED}Account does not exist.")
-            return 0
-        elif response == "USER_ALREADY_ONLINE":
-            print(f"{Fore.RED}Account is already online.")
-            return 2
-        elif response == "WRONG_PASSWORD":
-            print(f"{Fore.RED}Wrong password.")
-            return 3
+        try:
+            message = "LOGIN" + "|" + username + "|" + password + "|" + str(peerServerPort)
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+            response = self.tcpClientSocket.recv(1024).decode()
+            logging.info("Received from " + self.registryName + " -> " + response)
+            if response == "LOGIN_SUCCESS":
+                print(f"{Fore.GREEN}Logged in successfully !")
+                return 1
+            elif response == "USER_NOT_FOUND":
+                print(f"{Fore.RED}Account does not exist.")
+                return 0
+            elif response == "USER_ALREADY_O192NLINE":
+                print(f"{Fore.RED}Account is already online.")
+                return 2
+            elif response == "WRONG_PASSWORD":
+                print(f"{Fore.RED}Wrong password.")
+                return 3
+        except:
+            print("Error in login function")
         
     def hashedData(self, data):
         # Combine the password with the salt and hash it using SHA-256
@@ -555,106 +563,107 @@ class peerMain:
         return hashed_data
     
     def createRoom(self, roomname, password):
-        hashed_password = self.hashedData(password)
-        message = "CREATE_CHAT_ROOM" +"|" + roomname + "|" + hashed_password
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
-        response = self.tcpClientSocket.recv(1024).decode()
-        logging.info("Received from " + self.registryName + " -> " + response)
-        if response == "ROOM_CREATED":
-            print("room created")
-            self.joinRoom(roomname, password)
-        elif response == "ROOM_NAME_EXISTS":
-            print("choose another name")
+        try:
+            hashed_password = self.hashedData(password)
+            message = "CREATE_CHAT_ROOM" +"|" + roomname + "|" + hashed_password
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+            response = self.tcpClientSocket.recv(1024).decode()
+        
+            logging.info("Received from " + self.registryName + " -> " + response)
+            if response == "ROOM_CREATED":
+                print("room created")
+                self.joinRoom(roomname, password)
+            elif response == "ROOM_NAME_EXISTS":
+                print("choose another name")
+        except:
+            print("Error occured in createRoom function")
     
         # join room function
     def joinRoom(self, roomname, password):
-        hashed_password = self.hashedData(password)
-        message = "JOIN_CHAT_ROOM"+ "|" + roomname + "|" + hashed_password
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
-        response = self.tcpClientSocket.recv(1024).decode()
-        logging.info("Received from " + self.registryName + " -> " + response)
-        if response == "JOINED":
-            print("room joined")
-        elif response == "ROOM_NOT_EXIST":
-            print("room does not exist")
-        elif response == "ROOM_WRONG_PASSWORD":
-            print("wrong password")
-
+        try:
+            hashed_password = self.hashedData(password)
+            message = "JOIN_CHAT_ROOM"+ "|" + roomname + "|" + hashed_password
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+            response = self.tcpClientSocket.recv(1024).decode()
+            logging.info("Received from " + self.registryName + " -> " + response)
+            if response == "JOINED":
+                print("room joined")
+            elif response == "ROOM_NOT_EXIST":
+                print("room does not exist")
+            elif response == "ROOM_WRONG_PASSWORD":
+                print("wrong password")
+        except:
+            print("Error occured in joinRoom function")
+    
 
     def showRooms(self):
-        message = "SHOW_ROOMS"
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
-        response = self.tcpClientSocket.recv(1024).decode()
-        logging.info("Received from " + self.registryName + " -> " + response)
-        if response == "NO_ROOMS":
-            print("\nYou didn't join any room yet")
-            return 0
-        else:
-            Rooms = ast.literal_eval(response)
-            print("    Available Rooms:")
-            for index, room in enumerate(Rooms, start=1):
-                print(f"[{index}] {room['roomname']}")
-            return 1
+        try:
+            message = "SHOW_ROOMS"
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+            response = self.tcpClientSocket.recv(1024).decode()
+            logging.info("Received from " + self.registryName + " -> " + response)
+            if response == "NO_ROOMS":
+                print("\nYou didn't join any room yet")
+                return 0
+            else:
+                Rooms = ast.literal_eval(response)
+                print("    Available Rooms:")
+                for index, room in enumerate(Rooms, start=1):
+                    print(f"[{index}] {room['roomname']}")
+                return 1
+        except:
+            print("Error in showRooms function")
         
 
     def enterRoom(self, roomname):
-        message = "ENTER_ROOM|" + roomname
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
-        response = self.tcpClientSocket.recv(1024).decode()
-        logging.info("Received from " + self.registryName + " -> " + response)
-        if response == "VALID_ROOM":
-            self.peerServer.isRoomRequested = 1
-            self.peerServer.isChatRequested = 1
-            members = self.roomMembers(roomname)    # retrieve room members
-            if members:
-                roomMembers = ast.literal_eval(members)
-                print("\nRoom Members")
-                for member in roomMembers:
-                    print(member["username"])
-                print("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
-                self.sendRoomMessage(roomname)
-        elif response == "INVALID_ROOM":
-            print(f"{Fore.RED}\nYou don't have access to this room")
-        elif response == "ROOM_NOT_EXIST":
-            print(f"{Fore.RED}\nRoom does not exist...") 
+        try:
+            message = "ENTER_ROOM|" + roomname
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+            response = self.tcpClientSocket.recv(1024).decode()
+            logging.info("Received from " + self.registryName + " -> " + response)
+            if response == "VALID_ROOM":
+                self.peerServer.isRoomRequested = 1
+                self.peerServer.isChatRequested = 1
+                members = self.roomMembers(roomname)    # retrieve room members
+                if members:
+                    roomMembers = ast.literal_eval(members)
+                    print("\nRoom Members")
+                    for member in roomMembers:
+                        print(member["username"])
+                    print("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
+                    self.sendRoomMessage(roomname)
+            elif response == "INVALID_ROOM":
+                print(f"{Fore.RED}\nYou don't have access to this room")
+            elif response == "ROOM_NOT_EXIST":
+                print(f"{Fore.RED}\nRoom does not exist...") 
+        except:
+            print("Error in enterRoom function")
 
 
     def roomMembers(self, roomname):
-        message = "SEARCH_ROOM|" + roomname
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
-        response = self.tcpClientSocket.recv(1024).decode()
-        if response == "ROOM_EMPTY":
-            print("\nRoom is empty")
-            return 0
-        else:
-            return response
+        try:
+            message = "SEARCH_ROOM|" + roomname
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+            response = self.tcpClientSocket.recv(1024).decode()
+            if response == "ROOM_EMPTY":
+                print("\nRoom is empty")
+                return 0
+            else:
+                return response
+        except:
+            print("Error in enterRoom function")
         
     def sendRoomMessage(self, roomname):
-        print("\n                        Chat")
-        members = self.getOnlineRoomMembers(roomname)
-        if members:
-            
-            roomMembers = ast.literal_eval(members)
-            for member in roomMembers:
-                cred = self.searchUser(member["username"])
-                if cred != 0 and cred != None:
-                    memberCred = cred.split(':')
-                    ip = memberCred[0]
-                    port = memberCred[1]
-                    msgSocket = socket(AF_INET, SOCK_STREAM)
-                    msgSocket.connect((ip, int(port)))
-                    message =  self.loginCredentials[0] + "|" + "JOINED" 
-                    msgSocket.send(message.encode())
-                    msgSocket.close()
-        while 1:
-            msg = input()
+        try:
+            print("\n                        Chat")
             members = self.getOnlineRoomMembers(roomname)
             if members:
+                
                 roomMembers = ast.literal_eval(members)
                 for member in roomMembers:
                     cred = self.searchUser(member["username"])
@@ -664,72 +673,112 @@ class peerMain:
                         port = memberCred[1]
                         msgSocket = socket(AF_INET, SOCK_STREAM)
                         msgSocket.connect((ip, int(port)))
-                        message = self.loginCredentials[0] + "|" + msg
-                        logging.info("Send to " + ip + ":" + port + " -> " + message)
+                        message =  self.loginCredentials[0] + "|" + "JOINED" 
                         msgSocket.send(message.encode())
                         msgSocket.close()
-            if msg == ":q":
-                self.leaveRoom(roomname)
-                self.peerServer.isRoomRequested = 0
-                self.peerServer.isChatRequested = 0
-                break
+            while 1:
+                msg = input()
+                sys.stdout.write("\033[F")
+                sys.stdout.write("\033[K")
+                # sends the message to the connected peer, and logs it
+                if msg != ":q":
+                    messageFormatted = applyformatting(msg)
+                    print("me: " + messageFormatted)
+                members = self.getOnlineRoomMembers(roomname)
+                if members:
+                    roomMembers = ast.literal_eval(members)
+                    for member in roomMembers:
+                        cred = self.searchUser(member["username"])
+                        if cred != 0 and cred != None:
+                            memberCred = cred.split(':')
+                            ip = memberCred[0]
+                            port = memberCred[1]
+                            msgSocket = socket(AF_INET, SOCK_STREAM)
+                            msgSocket.connect((ip, int(port)))
+                            message = self.loginCredentials[0] + "|" + msg
+                            logging.info("Send to " + ip + ":" + port + " -> " + message)
+                            msgSocket.send(message.encode())
+                            msgSocket.close()
+                if msg == ":q":
+                    self.leaveRoom(roomname)
+                    self.peerServer.isRoomRequested = 0
+                    self.peerServer.isChatRequested = 0
+                    break
+
+        except:
+            print("Error in sendRoomMessage function")
 
 
     def leaveRoom(self, roomname):
-        message = "EXIT_ROOM|" + roomname
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
-        print("\nYou have quit the room.")
+        try:
+            message = "EXIT_ROOM|" + roomname
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+            print("\nYou have quit the room.")
+        except:
+            print("Error in leaveRoom function")
         
     def getOnlineRoomMembers(self, roomname):
-        message = "SEARCH_ROOM_ONLINE|" + roomname
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
-        response = self.tcpClientSocket.recv(1024).decode()
-        if response == "ROOM_EMPTY":
-            print("\nno members online\n")
-            return 0
-        else:
-            return response
+        try:
+            message = "SEARCH_ROOM_ONLINE|" + roomname
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+            response = self.tcpClientSocket.recv(1024).decode()
+            if response == "ROOM_EMPTY":
+                print("\nno members online\n")
+                return 0
+            else:
+                return response
+        except:
+            print("Error in getOnlineRoomMembers function")
         
     def deleteRoom(self, roomname, password):
-        hashed_password = self.hashedData(password)
-        message = "DELETE_ROOM|" + roomname + "|" + hashed_password
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
-        response = self.tcpClientSocket.recv(1024).decode()
-        logging.info("Received from " + self.registryName + " -> " + response)
-        if response == "ROOM_DELETED":
-            print("\nRoom Deleted..." )
-        elif response == "ROOM_NOT_EXIST":
-            print("\nRoom doesn't exist")
-        elif response == "ROOM_WRONG_PASSWORD":
-            print("\nIncorrect password")
-        elif response == "NOT_CREATOR":
-            print("\nYou can't delete the room because you aren't the owner")
-
+        try:
+            hashed_password = self.hashedData(password)
+            message = "DELETE_ROOM|" + roomname + "|" + hashed_password
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+            response = self.tcpClientSocket.recv(1024).decode()
+            logging.info("Received from " + self.registryName + " -> " + response)
+            if response == "ROOM_DELETED":
+                print("\nRoom Deleted..." )
+            elif response == "ROOM_NOT_EXIST":
+                print("\nRoom doesn't exist")
+            elif response == "ROOM_WRONG_PASSWORD":
+                print("\nIncorrect password")
+            elif response == "NOT_CREATOR":
+                print("\nYou can't delete the room because you aren't the owner")
+        except:
+            print("Error in deleteRoom function")
 
     # logout function
     def logout(self, option):
         # a logout message is composed and sent to registry
         # timer is stopped
-        if option == 1:
-            message = "LOGOUT" + "|" + self.loginCredentials[0]
-            self.timer.cancel()
-        else:
-            message = "LOGOUT"
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
+        try:
+            if option == 1:
+                message = "LOGOUT" + "|" + self.loginCredentials[0]
+                self.timer.cancel()
+            else:
+                message = "LOGOUT"
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+        except:
+            print("Error in logout function")
 
     def getOnlineUsers(self):
-        message = "GET_ONLINE_PEERS"
-        self.tcpClientSocket.send(message.encode())
-        response = self.tcpClientSocket.recv(1024).decode().split('|')
-        if response[0] != "NO_USERS_ONLINE" :
-            for user in response:
-                print(f"{Fore.GREEN}-{user} is online")
-        else:
-            print(f"{Fore.RED} No users are currently online.")
+        try:
+
+            message = "GET_ONLINE_PEERS"
+            self.tcpClientSocket.send(message.encode())
+            response = self.tcpClientSocket.recv(1024).decode().split('|')
+            if response[0] != "NO_USERS_ONLINE" :
+                for user in response:
+                    print(f"{Fore.GREEN}-{user} is online")
+            else:
+                print(f"{Fore.RED} No users are currently online.")
+        except:
+            print("Error in getOnlineUsers function")
   
 
     # function for searching an online user
@@ -737,18 +786,21 @@ class peerMain:
         # a search message is composed and sent to registry
         # custom value is returned according to each response
         # to this search message
-        message = "SEARCH" + "|" + username
-        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
-        self.tcpClientSocket.send(message.encode())
-        response = self.tcpClientSocket.recv(1024).decode().split('|')
-        logging.info("Received from " + self.registryName + " -> " + " ".join(response))
-        if response[0] == "USER_FOUND":
-            return response[1]
-        elif response[0] == "USER_NOT_ONLINE":
-            return 0
-        elif response[0] == "USER_NOT_FOUND":
-            return None
-    
+        try:
+            message = "SEARCH" + "|" + username
+            logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+            self.tcpClientSocket.send(message.encode())
+            response = self.tcpClientSocket.recv(1024).decode().split('|')
+            logging.info("Received from " + self.registryName + " -> " + " ".join(response))
+            if response[0] == "USER_FOUND":
+                return response[1]
+            elif response[0] == "USER_NOT_ONLINE":
+                return 0
+            elif response[0] == "USER_NOT_FOUND":
+                return None
+        except:
+            print("Error in searchUser function")
+        
     # function for sending hello message
     # a timer thread is used to send hello messages to udp socket of registry
     def sendHelloMessage(self):
@@ -757,6 +809,8 @@ class peerMain:
         self.udpClientSocket.sendto(message.encode(), (self.registryName, self.registryUDPPort))
         self.timer = threading.Timer(1, self.sendHelloMessage)
         self.timer.start()
+
+# Replace with your actual module and class
 
 # peer is started
 main = peerMain()
