@@ -118,8 +118,7 @@ class DB:
         user = self.db.room_peers.find_one({"roomname": roomname, "username": username})
         return user is not None
 
-    def count_online_users(self):
-        return self.online_peers.count_documents({})
+  
 
 
     def enterRoom(self, roomname, username):
