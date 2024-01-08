@@ -328,7 +328,7 @@ class PeerClient(threading.Thread):
                 
 
 # main process of the peer
-class peerMain(unittest.TestCase):
+class peerMain():
 
     # peer initializations
     def __init__(self):
